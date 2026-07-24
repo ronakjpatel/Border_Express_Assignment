@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: staging
+    database: RESIDENTIAL_SURCHARGE
+    schema: staging
+    tables:
+      - name: DimCalender
+        description: "Raw calendar reference data used for consignments."
+      - name: DimCustomer
+        description: "Raw customer master data from the Border Express source system."
+      - name: DimSenderLocation
+        description: "Raw sender location reference data from the Border Express source system."
+      - name: DimReceiverLocation
+        description: "Raw receiver location reference data from the Border Express source system."
+      - name: DimServiceType
+        description: "Raw service type reference data from the Border Express source system."
+      - name: DimUnitSurcharge
+        description: "Raw unit surcharge reference data from the Border Express source system."
+      - name: FactConsignment
+        description: "Raw consignment transaction data from the Border Express source system."
