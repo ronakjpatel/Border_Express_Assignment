@@ -162,7 +162,8 @@ models:
       - name: total_units
         description: >
           Number of cartons/parcels transported in this consignment. Drives
-          which surcharge tier (stg_dim_unit_surcharge) applies.
+          which surcharge tier (stg_dim_unit_surcharge) applies. Rounded to
+          the nearest whole unit - source has couple of rows with a fractional value.
         tests:
           - not_null
       - name: service_type_id

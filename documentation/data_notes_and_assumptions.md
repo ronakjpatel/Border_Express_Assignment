@@ -6,7 +6,7 @@ have to reverse-engineer from the SQL. It is updated as each layer of the projec
 not written once upfront.
 
 Technical architecture (layers, tooling, how to run the project) is documented separately in
-`dbt/README.md`. This file is about the *data and the business logic*, not the pipeline
+`dbt/README.md`. This file is about the _data and the business logic_, not the pipeline
 mechanics.
 
 ## The business ask (source: stakeholder briefing + manager notes)
@@ -15,13 +15,14 @@ Border Express is evaluating a new surcharge on deliveries to **residential** ad
 priced by the number of units in the consignment, to cover extra handling effort:
 
 | Units | Surcharge |
-|---|---|
-| 0–1 | $5 |
-| 2 | $8 |
-| 3–5 | $12 |
-| >5 | $15 |
+| ----- | --------- |
+| 0–1   | $5        |
+| 2     | $8        |
+| 3–5   | $12       |
+| >5    | $15       |
 
 Stakeholders want three numbers plus one extra insight of our choosing:
+
 1. Additional annual revenue the surcharge would generate from **eligible** customers.
 2. Annual revenue **foregone** on **excluded** customers (i.e. what they'd have generated
    had they not been excluded).
@@ -46,11 +47,12 @@ Stakeholders want three numbers plus one extra insight of our choosing:
   surcharge by the business (reason not given in the brief — worth asking stakeholders).
 - **Residential delivery** — `DimReceiverLocation.ReceiverResidentialAddress = 1`. Based on
   the **receiver** location, not the sender. The surcharge only applies to residential
-  *deliveries* — a residential *sender* location is irrelevant to this surcharge.
-- **Surcharge eligible row** (working definition, to be applied once silver is built) — a
-  consignment where the receiver is residential AND the customer is not excluded. Only these
-  rows would generate the "additional revenue" in question 1. Rows that are residential but
-  excluded would feed question 2 (revenue foregone) instead.
+  _deliveries_ — a residential _sender_ location is irrelevant to this surcharge.
+- **Surcharge eligible row** — a consignment where the receiver is residential AND the
+  customer is not excluded AND `total_units` matches a real tier in `DimUnitSurcharge`.
+  Implemented in `int_consignment_surcharge` (silver). Only these rows generate the
+  "additional revenue" in question 1. Rows that are residential but excluded feed question 2
+  (revenue foregone) instead.
 
 ## Data quality findings and how each was handled
 
@@ -68,14 +70,11 @@ Nothing in that raw layer was modified — every fix below happens in the dbt br
    `CASE` needed.
 
 2. **Postcodes lost their leading zero.** `SenderPostcode`/`ReceiverPostcode` are stored as
-   `NUMBER` in Snowflake (and were already 3-digit text in the raw CSV before that -
-   Excel auto-stripped the leading zero on export). This corrupts any Northern Territory
+   `NUMBER` in Snowflake. This corrupts any Northern Territory
    postcode (valid range 0800–0999): e.g. `810` should read `0810`. Confirmed 4 receiver
    rows and 2 sender rows affected, all NT.
    **Decision:** zero-pad back to 4 characters (`lpad(postcode::varchar, 4, '0')`) in
-   bronze. Low impact on the 3 core stakeholder questions (state comes from the separate
-   `ReceiverState`/`SenderState` text column, not derived from postcode), but would have
-   shown wrong postcodes in any drill-down/visual otherwise.
+   bronze.
 
 3. **One orphan `customer_code`, caused by a case-sensitivity typo, not a missing
    customer.** `FactConsignment` has `customer_code = 'DIA9'` (invoice 73294325, consignment
@@ -91,18 +90,25 @@ Nothing in that raw layer was modified — every fix below happens in the dbt br
    transformation layer, consistent with the instruction not to change the data we were
    given.
 
-## Open questions worth raising with stakeholders
+4. **9 rows have `TotalUnits = 2.5`.** `round(2.5) = 3`, so these land in the 3-5 tier
+   (\$12) instead of the 2-unit tier (\$8) - a \$4/consignment difference.
+   **Decision:** round to nearest whole unit in bronze. Was already happening implicitly via
+   the `::integer` cast (rounds, not truncates) - made it explicit with `round()`.
 
-- Why are some customers excluded from the surcharge in the first place (business reason
-  not stated in the brief) - could be relevant framing for question 2's revenue-foregone
-  number.
-- Whether annualising one month of dummy data by a flat x12 is acceptable, or whether a more
-  conservative/seasonally-aware method is expected - the exact annualisation method used
-  will be documented here once the gold layer is built.
+5. **2 consignments have `total_units = -1`, which doesn't match any `DimUnitSurcharge`
+   tier.** Found while building `int_consignment_surcharge` (silver) - the tier lookup came
+   back null for these 2 rows. Both also have a negative `pre_gst_charge` and a consignment number in a different format than usual. 37 rows total have a negative charge, but only these 2 also have
+   negative units, so most credits/adjustments carry a normal positive unit count and aren't
+   affected. These 2 read as credit/reversal entries against an earlier consignment, not real
+   deliveries.
+   **Decision:** in `int_consignment_surcharge`, treat these 2 rows as not eligible with
+   `surcharge_amount = 0` rather than null - the row stays,
+   it just contributes nothing to either the revenue or foregone numbers, since there's no
+   genuine unit count to price a surcharge tier against.
 
 ## Status
 
-Bronze layer (7 models, casts/cleaning only) complete and passing all dbt tests as of this
-writing. Silver (joins + business flags) and gold (marts answering the stakeholder
-questions) are not yet built - this file will be extended with the exact revenue
-calculation/annualisation logic once those layers exist.
+Bronze layer (7 models, casts/cleaning only) and silver layer (`int_consignment_surcharge` -
+surcharge eligibility/amount business logic at consignment grain) complete and passing all
+dbt tests. Gold (the dimensional model - surrogate keys, merged location
+dim, annualisation - Power BI actually connects to) is not yet buil

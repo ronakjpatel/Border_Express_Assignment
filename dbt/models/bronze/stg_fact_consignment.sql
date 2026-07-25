@@ -9,6 +9,6 @@ select
     receiverlocationid::integer                                     as receiver_location_id,
     upper(trim(payingaccountcodeid::varchar))                      as customer_code,
     pregstcharge::number(12, 2)                                     as pre_gst_charge,
-    totalunits::integer                                             as total_units,
+    round(totalunits)::integer                                      as total_units,
     servicetypeid::integer                                          as service_type_id
 from {{ source('staging', 'FactConsignment') }}

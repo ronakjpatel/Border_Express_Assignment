@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: int_consignment_surcharge
+    description: >
+      One row per consignment (same grain as stg_fact_consignment), enriched with the
+      surcharge business logic: whether the consignment is eligible for the residential
+      surcharge, what the surcharge amount would be based on its unit-count tier, and how
+      that amount splits into revenue (eligible) vs foregone (excluded).
+    columns:
+      - name: invoice_id
+        description: One row per consignment, same PK as stg_fact_consignment.
+        tests:
+          - unique
+          - not_null
+      - name: sales_post_date
+        description: Date basis for the analysis, passed through from stg_fact_consignment.
+        tests:
+          - not_null
+      - name: customer_code
+        description: Foreign key to stg_dim_customer.
+        tests:
+          - not_null
+      - name: receiver_location_id
+        description: Foreign key to stg_dim_receiver_location.
+        tests:
+          - not_null
+      - name: sender_location_id
+        description: Foreign key to stg_dim_sender_location.
+        tests:
+          - not_null
+      - name: service_type_id
+        description: Foreign key to stg_dim_service_type.
+        tests:
+          - not_null
+      - name: pre_gst_charge
+        description: Existing freight revenue for this consignment, before any surcharge.
+        tests:
+          - not_null
+      - name: total_units
+        description: Tells which stg_dim_unit_surcharge tier this consignment falls into.
+        tests:
+          - not_null
+      - name: surcharge_amount
+        description: >
+          The tier-based surcharge dollar amount for this consignment's total_units,
+          computed for every residential consignment regardless of whether the customer is
+          excluded. Feeds both surcharge_revenue_amount and surcharge_foregone_amount below.
+        tests:
+          - not_null
+      - name: is_surcharge_eligible
+        description: >
+          True when the receiver address is residential AND the customer is not excluded -
+          the consignment that would actually generate new surcharge revenue.
+        tests:
+          - not_null
+      - name: surcharge_revenue_amount
+        description: >
+          surcharge_amount when is_surcharge_eligible, else 0. This is what feeds the
+          "additional annual revenue" stakeholder question.
+        tests:
+          - not_null
+      - name: surcharge_foregone_amount
+        description: >
+          surcharge_amount when the delivery is residential but the customer is excluded,
+          else 0. This is what feeds the "annual revenue foregone" stakeholder question.
+        tests:
+          - not_null
