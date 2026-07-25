@@ -1,0 +1,182 @@
+version: 2
+
+models:
+  - name: stg_dim_calendar
+    description: >
+      One row per calendar date. Bronze-layer copy of DimCalender with columns
+      renamed to snake_case; no business logic applied.
+    columns:
+      - name: calendar_date
+        description: The calendar date. Primary key of this table.
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_dim_customer
+    description: >
+      One row per paying customer account. Bronze-layer copy of DimCustomer.
+      `is_excluded_from_surcharge` is the flag that determines whether a
+      customer is in-scope for the proposed residential surcharge.
+    columns:
+      - name: customer_code
+        description: >
+          Paying account code, the customer's unique identifier. Joins to
+          FactConsignment.PayingAccountCodeID.
+        tests:
+          - unique
+          - not_null
+      - name: customer_name
+        description: Customer's display name.
+      - name: is_excluded_from_surcharge
+        description: >
+          True when the customer is excluded from the proposed residential
+          surcharge (source ExcludeSurcharge = 1). False (ExcludeSurcharge = 0)
+          means the customer is eligible for the surcharge.
+        tests:
+          - not_null
+
+  - name: stg_dim_sender_location
+    description: >
+      One row per sender (pickup) location. Bronze-layer copy of
+      DimSenderLocation. Not used to determine surcharge eligibility - see
+      stg_dim_receiver_location for that.
+    columns:
+      - name: sender_location_id
+        tests:
+          - unique
+          - not_null
+      - name: sender_postcode
+        description: >
+          4-digit AU postcode, zero-padded (varchar). Source stored postcode
+          as a number, which silently dropped the leading zero on Northern
+          Territory postcodes (0800-0999) - reconstructed here with lpad.
+
+  - name: stg_dim_receiver_location
+    description: >
+      One row per receiver (delivery) location. Bronze-layer copy of
+      DimReceiverLocation. `is_receiver_residential` is the flag that
+      determines whether a delivery is eligible for the residential
+      surcharge in the first place (surcharge only applies to residential
+      deliveries).
+    columns:
+      - name: receiver_location_id
+        tests:
+          - unique
+          - not_null
+      - name: receiver_postcode
+        description: >
+          4-digit AU postcode, zero-padded (varchar). Source stored postcode
+          as a number, which silently dropped the leading zero on Northern
+          Territory postcodes (0800-0999) - reconstructed here with lpad.
+      - name: is_receiver_residential
+        description: >
+          True when the delivery address is residential (source
+          ReceiverResidentialAddress = 1). The proposed surcharge only
+          applies to residential deliveries.
+        tests:
+          - not_null
+
+  - name: stg_dim_service_type
+    description: >
+      One row per service type (e.g. Parcel vs Bulk). Bronze-layer copy of
+      DimServiceType.
+    columns:
+      - name: service_type_id
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_dim_unit_surcharge
+    description: >
+      Surcharge rate card: one row per unit-count tier, with the flat dollar
+      surcharge that applies when a consignment's TotalUnits falls in that
+      tier. Bronze-layer copy of DimUnitSurcharge; `surcharge_amount` is
+      cleaned from source text (e.g. " $ 5.00 ") to a number.
+    columns:
+      - name: unit_surcharge_id
+        tests:
+          - unique
+          - not_null
+      - name: unit_from
+        description: Lower bound (inclusive) of the unit-count tier.
+        tests:
+          - not_null
+      - name: unit_to
+        description: Upper bound (inclusive) of the unit-count tier.
+        tests:
+          - not_null
+      - name: surcharge_amount
+        description: Flat dollar surcharge that applies for this tier.
+        tests:
+          - not_null
+
+  - name: stg_fact_consignment
+    description: >
+      One row per consignment (a freight shipment from a sender to a
+      receiver, with a total unit count and a pre-GST charge to the paying
+      customer). Bronze-layer copy of FactConsignment.
+
+      Data quality note: `sales_post_date_raw` is retained only for lineage -
+      every source row holds the literal text "00:00.0" (looks like a
+      corrupted Excel date export) and is not usable for date logic.
+      `invoice_date` is fully populated and is used instead as the date basis
+      for all revenue/annualisation logic downstream, per an explicit
+      assumption agreed for this analysis.
+    columns:
+      - name: invoice_id
+        tests:
+          - unique
+          - not_null
+      - name: consignment_number
+        description: Human-readable consignment/shipment reference number.
+      - name: invoice_date
+        description: >
+          Date the consignment was invoiced. Used as the practical substitute
+          for Sales Post Date throughout this analysis (see model
+          description).
+        tests:
+          - not_null
+      - name: sales_post_date_raw
+        description: >
+          Raw, uncleaned Sales Post Date text from source. Not usable - see
+          model description.
+      - name: sender_location_id
+        description: Foreign key to stg_dim_sender_location.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_dim_sender_location')
+              field: sender_location_id
+      - name: receiver_location_id
+        description: Foreign key to stg_dim_receiver_location.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_dim_receiver_location')
+              field: receiver_location_id
+      - name: customer_code
+        description: Foreign key to stg_dim_customer.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_dim_customer')
+              field: customer_code
+      - name: pre_gst_charge
+        description: >
+          Freight cost charged to the customer for this consignment,
+          excluding GST. Referred to as "Connote Revenue" internally.
+        tests:
+          - not_null
+      - name: total_units
+        description: >
+          Number of cartons/parcels transported in this consignment. Drives
+          which surcharge tier (stg_dim_unit_surcharge) applies.
+        tests:
+          - not_null
+      - name: service_type_id
+        description: Foreign key to stg_dim_service_type.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_dim_service_type')
+              field: service_type_id

@@ -3,24 +3,31 @@
 dbt project modeling the proposed residential delivery surcharge for Border Express, built
 on top of raw dimension/fact data loaded into Snowflake (`RESIDENTIAL_SURCHARGE.STAGING`).
 
-## Architecture: medallion (3 layers)
+## Architecture: medallion (4 stages)
 
 All transformation logic lives in dbt. Power BI is presentation-only — it consumes the gold
 layer and defines only the small set of measures needed for the visuals (no business logic
 in DAX).
 
-| Layer | dbt folder | Purpose |
+`Staging` is the raw landing zone in Snowflake (`RESIDENTIAL_SURCHARGE.STAGING`) — the 7
+source tables loaded as-is, outside of dbt. dbt picks up from there across three layers:
+**Bronze** (1:1 cleaned copies of source), **Silver** (joined/enriched), **Gold**
+(presentation-ready marts). Each layer's own folder/`schema.yml` is the source of truth for
+what it actually contains — this section only tracks what's built so far.
+
+### Built so far
+
+| Layer | dbt folder | Status |
 |---|---|---|
-| **Bronze** (staging) | `models/staging/` | 1:1 with each raw source table. Casts types, cleans values (e.g. strips `$`/whitespace from surcharge amounts, parses date strings), renames to consistent snake_case. No joins, no business logic. |
-| **Silver** (intermediate) | `models/intermediate/` | Joins consignments to their dimensions (receiver location, customer, service type, unit surcharge tier). Derives row-level business flags: `is_residential`, `is_excluded_customer`, `surcharge_tier`, `surcharge_amount`. |
-| **Gold** (marts) | `models/marts/` | Aggregated, presentation-ready models that answer the stakeholder questions directly (incremental revenue, foregone revenue, top customers, supporting insight cuts). These are what Power BI connects to. |
+| **Bronze** | `models/bronze/` | Done — 7 models, 1:1 with each raw staging table. Casts types, cleans values (e.g. strips `$`/whitespace from surcharge amounts, parses date strings, zero-pads postcodes), renames to snake_case. No joins, no business logic. All tests passing. |
+| **Silver** | `models/silver/` | Not started. |
+| **Gold** | `models/gold/` | Not started. |
 
 ## Documentation
 
-Model/column descriptions, tests, and business definitions (e.g. what counts as an
-"eligible" vs "excluded" customer, how the surcharge tier is derived) live in each layer's
-`schema.yml` and will be expanded into a full documentation pass once the models are built —
-see project-level `documentation/` folder for the consolidated writeup.
+Model/column descriptions and tests live in each layer's `schema.yml`. Business definitions,
+data quality findings, and assumptions live in `documentation/data_notes_and_assumptions.md`
+at the project root, updated as each layer is built.
 
 ## Running
 
