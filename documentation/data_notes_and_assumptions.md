@@ -60,24 +60,14 @@ loaded as-is into Snowflake (`RESIDENTIAL_SURCHARGE.STAGING`) before this projec
 Nothing in that raw layer was modified — every fix below happens in the dbt bronze layer
 (`dbt/models/bronze/`), i.e. at transformation time, not at the source.
 
-1. **`FactConsignment.SalesPostDate` is unusable.** Every one of the 1,999 rows holds the
-   literal text `"00:00.0"`, both in the original CSV and as loaded into Snowflake. This
-   looks like an Excel date cell that got formatted as `mm:ss.0` and lost its date component
-   on export. The manager notes say charges are based on Sales Post Date, but that field is
-   dead.
-   **Decision:** use `InvoiceDate` instead (fully populated, 0 unparseable rows out of 1,999
-   against format `MM/DD/YY HH24:MI`) as the practical substitute for all
-   date/annualisation logic. **This is an assumption, and is called out explicitly in the
-   presentation**, not silently substituted.
-
-2. **`DimUnitSurcharge.Surcharge` arrives as formatted currency text**, e.g. `" $ 5.00 "`,
+1. **`DimUnitSurcharge.Surcharge` arrives as formatted currency text**, e.g. `" $ 5.00 "`,
    not a number. Cleaned via `regexp_replace` to strip everything but digits/decimal point,
    then cast to `NUMBER(10,2)` in `stg_dim_unit_surcharge`. The four tiers in the table
    (`0-1→$5`, `2→$8`, `3-5→$12`, `6-9999→$15`) match the brief exactly, and the top tier's
    explicit `unit_to = 9999` means tier lookups can be a simple `BETWEEN`, no open-ended
    `CASE` needed.
 
-3. **Postcodes lost their leading zero.** `SenderPostcode`/`ReceiverPostcode` are stored as
+2. **Postcodes lost their leading zero.** `SenderPostcode`/`ReceiverPostcode` are stored as
    `NUMBER` in Snowflake (and were already 3-digit text in the raw CSV before that -
    Excel auto-stripped the leading zero on export). This corrupts any Northern Territory
    postcode (valid range 0800–0999): e.g. `810` should read `0810`. Confirmed 4 receiver
@@ -87,7 +77,7 @@ Nothing in that raw layer was modified — every fix below happens in the dbt br
    `ReceiverState`/`SenderState` text column, not derived from postcode), but would have
    shown wrong postcodes in any drill-down/visual otherwise.
 
-4. **One orphan `customer_code`, caused by a case-sensitivity typo, not a missing
+3. **One orphan `customer_code`, caused by a case-sensitivity typo, not a missing
    customer.** `FactConsignment` has `customer_code = 'DIA9'` (invoice 73294325, consignment
    21537628, 2022-06-09, $32.37) which doesn't match any row in `DimCustomer` on an exact,
    case-sensitive join. Investigated before assuming: `DimCustomer` does contain a customer

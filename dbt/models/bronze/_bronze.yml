@@ -115,13 +115,6 @@ models:
       One row per consignment (a freight shipment from a sender to a
       receiver, with a total unit count and a pre-GST charge to the paying
       customer). Bronze-layer copy of FactConsignment.
-
-      Data quality note: `sales_post_date_raw` is retained only for lineage -
-      every source row holds the literal text "00:00.0" (looks like a
-      corrupted Excel date export) and is not usable for date logic.
-      `invoice_date` is fully populated and is used instead as the date basis
-      for all revenue/annualisation logic downstream, per an explicit
-      assumption agreed for this analysis.
     columns:
       - name: invoice_id
         tests:
@@ -130,16 +123,15 @@ models:
       - name: consignment_number
         description: Human-readable consignment/shipment reference number.
       - name: invoice_date
-        description: >
-          Date the consignment was invoiced. Used as the practical substitute
-          for Sales Post Date throughout this analysis (see model
-          description).
+        description: Date the consignment was invoiced.
         tests:
           - not_null
-      - name: sales_post_date_raw
+      - name: sales_post_date
         description: >
-          Raw, uncleaned Sales Post Date text from source. Not usable - see
-          model description.
+          Date the sale was posted. Per the manager notes, this is the date
+          basis for the surcharge/revenue analysis.
+        tests:
+          - not_null
       - name: sender_location_id
         description: Foreign key to stg_dim_sender_location.
         tests:
