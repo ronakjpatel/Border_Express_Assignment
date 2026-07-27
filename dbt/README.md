@@ -26,13 +26,9 @@ source of truth for what it actually contains — this section only tracks what'
 
 ## Documentation
 
-Model/column descriptions and tests live in each layer's `schema.yml`. Everything else is in
-`documentation/` at the project root:
-
-| File                            | What's in it                                                                       |
-| ------------------------------- | ---------------------------------------------------------------------------------- |
-| `findings_summary.md`           | The stakeholder-facing answers - the three questions, the numbers.                 |
-| `data_notes_and_assumptions.md` | Business definitions, every data quality issue found and the decision taken on it. |
+Model/column descriptions and tests live in each layer's `schema.yml`. Business definitions,
+every data quality issue found and the decision taken on it are in
+`documentation/data_notes_and_assumptions.md` at the project root.
 
 `sanity_checks/` holds the one-off investigation queries behind each data quality finding -
 `snowflake/ddl/` has the staging schema written as SQL.
