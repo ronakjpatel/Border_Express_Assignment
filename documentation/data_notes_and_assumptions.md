@@ -107,13 +107,30 @@ loaded as-is into Snowflake (`RESIDENTIAL_SURCHARGE.STAGING`) before this projec
    negative units, so most credits/adjustments carry a normal positive unit count and aren't
    affected. These 2 read as credit/reversal entries against an earlier consignment, not real
    deliveries.
-   **Decision:** in `int_consignment_surcharge`, treat these 2 rows as not eligible with
-   `surcharge_amount = 0` rather than null - the row stays,
-   it just contributes nothing to either the revenue or foregone numbers, since there's no
-   genuine unit count to price a surcharge tier against.
-   In gold they point at an unknown member row in `dim_unit_surcharge`
-   (`unit_surcharge_id = -1`, labelled "Unknown / no tier") instead of carrying a null FK.
-   A null FK is skipped by dbt's `relationships` test, so the unresolved join stays green, and
-   it drops the rows out of any Power BI visual sliced by unit tier - the tier breakdown then
-   doesn't reconcile to the fact table total. The unknown member keeps them countable and lets
-   `unit_surcharge_sk` carry a `not_null` test.
+   **Decision:** Handling Ineligible Consignment Surcharge Records
+
+In `int_consignment_surcharge`, treat these two rows as **not eligible** by setting `surcharge_amount = 0` instead of `NULL`.
+
+The rows should remain in the dataset but should not contribute to either revenue or foregone revenue calculations, as there is no valid unit count available to determine the applicable surcharge tier.
+
+In the gold layer, these records should reference the unknown member in `dim_unit_surcharge`:
+
+- `unit_surcharge_id = -1`
+- Label: `"Unknown / no tier"`
+
+This approach avoids using a null foreign key and ensures the records remain traceable.
+
+### Reasoning
+
+Using a null foreign key would create the following issues:
+
+- The dbt `relationships` test skips null values, allowing unresolved joins to pass validation.
+- Records with null unit surcharge keys are excluded from Power BI visuals filtered by unit tier.
+- Tier-level breakdowns would not reconcile with the overall fact table totals.
+
+By assigning the unknown member:
+
+- Records remain visible and countable in reporting.
+- Power BI tier breakdowns remain consistent with fact table totals.
+- `unit_surcharge_sk` can enforce a `not_null` test.
+- Data quality issues remain detectable without losing records from analysis.
