@@ -18,17 +18,24 @@ source of truth for what it actually contains — this section only tracks what'
 
 ### Built so far
 
-| Layer | dbt folder | Status |
-|---|---|---|
+| Layer      | dbt folder       | Status                                                                                                                                                                                                                                             |
+| ---------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Bronze** | `models/bronze/` | Done — 7 models, 1:1 with each raw staging table. Casts types, cleans values (e.g. strips `$`/whitespace from surcharge amounts, parses date strings, zero-pads postcodes), renames to snake_case. No joins, no business logic. All tests passing. |
-| **Silver** | `models/silver/` | Done — `int_consignment_surcharge`: one row per consignment, surcharge eligibility and revenue/foregone amounts. |
-| **Gold** | `models/gold/` | Done — `dim_location` (merged sender/receiver, role-filtered views), `dim_customer`, `dim_date`, `dim_unit_surcharge`, `fct_consignment_surcharge`. This is what Power BI reads. |
+| **Silver** | `models/silver/` | Done — `int_consignment_surcharge`: one row per consignment, surcharge eligibility and revenue/foregone amounts.                                                                                                                                   |
+| **Gold**   | `models/gold/`   | Done — `dim_location` (merged sender/receiver, role-filtered views), `dim_customer`, `dim_date`, `dim_unit_surcharge`, `fct_consignment_surcharge`. This is what Power BI reads.                                                                   |
 
 ## Documentation
 
-Model/column descriptions and tests live in each layer's `schema.yml`. Business definitions,
-data quality findings, and assumptions live in `documentation/data_notes_and_assumptions.md`
-at the project root, updated as each layer is built.
+Model/column descriptions and tests live in each layer's `schema.yml`. Everything else is in
+`documentation/` at the project root:
+
+| File                            | What's in it                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| `findings_summary.md`           | The stakeholder-facing answers - the three questions, the numbers.                 |
+| `data_notes_and_assumptions.md` | Business definitions, every data quality issue found and the decision taken on it. |
+
+`sanity_checks/` holds the one-off investigation queries behind each data quality finding -
+`snowflake/ddl/` has the staging schema written as SQL.
 
 ## Running
 

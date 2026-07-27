@@ -7,6 +7,10 @@ models:
       surcharge business logic: whether the consignment is eligible for the residential
       surcharge, what the surcharge amount would be based on its unit-count tier, and how
       that amount splits into revenue (eligible) vs foregone (excluded).
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('stg_fact_consignment')
     columns:
       - name: invoice_id
         description: One row per consignment, same PK as stg_fact_consignment.

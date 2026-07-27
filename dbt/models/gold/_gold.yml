@@ -96,6 +96,10 @@ models:
       One row per consignment - the fact table Power BI reads. Built from
       int_consignment_surcharge (silver), with surrogate-key FKs resolved, including
       unit_surcharge_sk to dim_unit_surcharge for the tier label.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('stg_fact_consignment')
     columns:
       - name: invoice_id
         tests:

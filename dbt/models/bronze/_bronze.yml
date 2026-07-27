@@ -5,6 +5,10 @@ models:
     description: >
       One row per calendar date. Bronze-layer copy of DimCalender with columns
       renamed to snake_case; no business logic applied.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('staging', 'DimCalender')
     columns:
       - name: calendar_date
         description: The calendar date. Primary key of this table.
@@ -17,6 +21,10 @@ models:
       One row per paying customer account. Bronze-layer copy of DimCustomer.
       `is_excluded_from_surcharge` is the flag that determines whether a
       customer is in-scope for the proposed residential surcharge.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('staging', 'DimCustomer')
     columns:
       - name: customer_code
         description: >
@@ -40,6 +48,10 @@ models:
       One row per sender (pickup) location. Bronze-layer copy of
       DimSenderLocation. Not used to determine surcharge eligibility - see
       stg_dim_receiver_location for that.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('staging', 'DimSenderLocation')
     columns:
       - name: sender_location_id
         tests:
@@ -58,6 +70,10 @@ models:
       determines whether a delivery is eligible for the residential
       surcharge in the first place (surcharge only applies to residential
       deliveries).
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('staging', 'DimReceiverLocation')
     columns:
       - name: receiver_location_id
         tests:
@@ -80,6 +96,10 @@ models:
     description: >
       One row per service type (e.g. Parcel vs Bulk). Bronze-layer copy of
       DimServiceType.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('staging', 'DimServiceType')
     columns:
       - name: service_type_id
         tests:
@@ -92,6 +112,10 @@ models:
       surcharge that applies when a consignment's TotalUnits falls in that
       tier. Bronze-layer copy of DimUnitSurcharge; `surcharge_amount` is
       cleaned from source text (e.g. " $ 5.00 ") to a number.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('staging', 'DimUnitSurcharge')
     columns:
       - name: unit_surcharge_id
         tests:
@@ -115,6 +139,10 @@ models:
       One row per consignment (a freight shipment from a sender to a
       receiver, with a total unit count and a pre-GST charge to the paying
       customer). Bronze-layer copy of FactConsignment.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('staging', 'FactConsignment')
     columns:
       - name: invoice_id
         tests:
