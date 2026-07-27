@@ -12,16 +12,17 @@ in DAX).
 `Staging` is the raw landing zone in Snowflake (`RESIDENTIAL_SURCHARGE.STAGING`) — the 7
 source tables loaded as-is, outside of dbt. dbt picks up from there across three layers:
 **Bronze** (1:1 cleaned copies of source), **Silver** (joined/enriched), **Gold**
-(presentation-ready marts). Each layer's own folder/`schema.yml` is the source of truth for
-what it actually contains — this section only tracks what's built so far.
+(presentation-ready marts). Each layer writes to its own Snowflake schema
+(`RESIDENTIAL_SURCHARGE.BRONZE`/`SILVER`/`GOLD`). Each layer's own folder/`schema.yml` is the
+source of truth for what it actually contains — this section only tracks what's built so far.
 
 ### Built so far
 
 | Layer | dbt folder | Status |
 |---|---|---|
 | **Bronze** | `models/bronze/` | Done — 7 models, 1:1 with each raw staging table. Casts types, cleans values (e.g. strips `$`/whitespace from surcharge amounts, parses date strings, zero-pads postcodes), renames to snake_case. No joins, no business logic. All tests passing. |
-| **Silver** | `models/silver/` | Not started. |
-| **Gold** | `models/gold/` | Not started. |
+| **Silver** | `models/silver/` | Done — `int_consignment_surcharge`: one row per consignment, surcharge eligibility and revenue/foregone amounts. |
+| **Gold** | `models/gold/` | Done — `dim_location` (merged sender/receiver, role-filtered views), `dim_customer`, `dim_date`, `dim_unit_surcharge`, `fct_consignment_surcharge`. This is what Power BI reads. |
 
 ## Documentation
 

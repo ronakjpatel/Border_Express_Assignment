@@ -31,6 +31,14 @@ Stakeholders want three numbers plus one extra insight of our choosing:
 4. At least one further visualization that anticipates what stakeholders will want to know
    next.
 
+The source data is a single month (June 2022), but questions 1 and 2 ask for annual figures.
+Scaling a month up by x12 to answer that would mean presenting a fabricated number as if it
+were real revenue - not something we should be doing to the data on the stakeholders' behalf.
+**Decision:** gold presents the actual June 2022 revenue/foregone amounts, not an annualized
+estimate. If stakeholders want an annual projection, that's a call for them to make once
+they've seen the monthly numbers and know what they're built on - not something baked
+silently into the model.
+
 ## Business definitions
 
 - **Consignment** — a single shipment from a sender to a receiver; one row in
@@ -59,8 +67,6 @@ Stakeholders want three numbers plus one extra insight of our choosing:
 All 7 source tables (`DimCalender`, `DimCustomer`, `DimSenderLocation`,
 `DimReceiverLocation`, `DimServiceType`, `DimUnitSurcharge`, `FactConsignment`) were already
 loaded as-is into Snowflake (`RESIDENTIAL_SURCHARGE.STAGING`) before this project started.
-Nothing in that raw layer was modified — every fix below happens in the dbt bronze layer
-(`dbt/models/bronze/`), i.e. at transformation time, not at the source.
 
 1. **`DimUnitSurcharge.Surcharge` arrives as formatted currency text**, e.g. `" $ 5.00 "`,
    not a number. Cleaned via `regexp_replace` to strip everything but digits/decimal point,
@@ -105,10 +111,9 @@ Nothing in that raw layer was modified — every fix below happens in the dbt br
    `surcharge_amount = 0` rather than null - the row stays,
    it just contributes nothing to either the revenue or foregone numbers, since there's no
    genuine unit count to price a surcharge tier against.
-
-## Status
-
-Bronze layer (7 models, casts/cleaning only) and silver layer (`int_consignment_surcharge` -
-surcharge eligibility/amount business logic at consignment grain) complete and passing all
-dbt tests. Gold (the dimensional model - surrogate keys, merged location
-dim, annualisation - Power BI actually connects to) is not yet buil
+   In gold they point at an unknown member row in `dim_unit_surcharge`
+   (`unit_surcharge_id = -1`, labelled "Unknown / no tier") instead of carrying a null FK.
+   A null FK is skipped by dbt's `relationships` test, so the unresolved join stays green, and
+   it drops the rows out of any Power BI visual sliced by unit tier - the tier breakdown then
+   doesn't reconcile to the fact table total. The unknown member keeps them countable and lets
+   `unit_surcharge_sk` carry a `not_null` test.

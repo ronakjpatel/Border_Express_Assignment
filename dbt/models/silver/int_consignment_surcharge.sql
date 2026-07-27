@@ -28,6 +28,7 @@ select
     fact.service_type_id,
     fact.pre_gst_charge,
     fact.total_units,
+    unit_surcharge.unit_surcharge_id,
     coalesce(unit_surcharge.surcharge_amount, 0) as surcharge_amount,
     case
         when receiver_location.is_receiver_residential

@@ -13,9 +13,8 @@ sources:
     tables:
       - name: DimCalender
         description: >
-          Calendar/date dimension, one row per date. Not currently joined to anything
-          downstream since we're using FactConsignment.InvoiceDate directly for date logic,
-          but kept around in case financial year/quarter attributes are needed later.
+          Calendar/date dimension, one row per date. Joined to fct_consignment_surcharge on
+          sales_post_date in gold's dim_date.
 
       - name: DimCustomer
         description: >
