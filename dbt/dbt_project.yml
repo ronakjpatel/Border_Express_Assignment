@@ -32,7 +32,10 @@ models:
   border_express_assignment:
     bronze:
       +materialized: view
+      +schema: bronze
     silver:
       +materialized: view
+      +schema: silver
     gold:
       +materialized: table
+      +schema: gold
