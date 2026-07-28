@@ -1,0 +1,5 @@
+# dbt_utils for the generic tests that don't ship with dbt core - accepted_range,
+# expression_is_true and equal_rowcount, all used in the layer schema.yml files.
+packages:
+  - package: dbt-labs/dbt_utils
+    version: [">=1.1.0", "<2.0.0"]

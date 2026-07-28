@@ -1,0 +1,48 @@
+# Declares the raw tables already loaded into Snowflake so our bronze models can reference
+# them with source() instead of hardcoding db/schema/table names everywhere.
+version: 2
+
+sources:
+  - name: staging
+    database: RESIDENTIAL_SURCHARGE
+    schema: staging
+    description: >
+      Raw landing schema in Snowflake. These 7 tables are loaded as-is from the source
+      files (one month of sample data, June 2022) - nothing is cleaned or joined here,
+      that happens in the bronze models.
+    tables:
+      - name: DimCalender
+        description: >
+          Calendar/date dimension, one row per date. Joined to fct_consignment_surcharge on
+          sales_post_date in gold's dim_date.
+
+      - name: DimCustomer
+        description: >
+          One row per paying customer account. Has the ExcludeSurcharge flag that decides
+          if a customer is in scope for the new residential surcharge or not - that's the
+          key column for this whole analysis.
+
+      - name: DimSenderLocation
+        description: >
+          One row per pickup location. Not used for surcharge eligibility (only the
+          receiver/delivery location matters for that), kept for completeness.
+
+      - name: DimReceiverLocation
+        description: >
+          One row per delivery location. ReceiverResidentialAddress tells us if a delivery
+          is to a residential address, which is what makes it eligible for the surcharge.
+
+      - name: DimServiceType
+        description: "Lookup of service types, e.g. Parcel vs Bulk."
+
+      - name: DimUnitSurcharge
+        description: >
+          The surcharge rate card - one row per unit-count tier (0-1, 2, 3-5, >5 units) with
+          the flat dollar surcharge for that tier. This is basically the pricing table from
+          the stakeholder brief.
+
+      - name: FactConsignment
+        description: >
+          One row per consignment (a shipment from a sender to a receiver). Has the units
+          shipped, the charge, and who's paying for it - this is the main fact table
+          everything else joins to.

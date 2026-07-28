@@ -1,0 +1,143 @@
+version: 2
+
+models:
+  - name: dim_location
+    description: >
+      Role-playing dimension - sender and receiver locations combined into one table
+      (location_role distinguishes them), for powerbi using dim_sender_location/dim_receiver_location.
+    columns:
+      - name: location_sk
+        description: hash(location_role, location_id). Surrogate PK.
+        tests:
+          - unique
+          - not_null
+      - name: location_role
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["sender", "receiver"]
+
+  - name: dim_sender_location
+    description: Role-filtered view over dim_location, sender rows only.
+    columns:
+      - name: sender_location_sk
+        tests:
+          - unique
+          - not_null
+      - name: sender_location_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_receiver_location
+    description: Role-filtered view over dim_location, receiver rows only.
+    columns:
+      - name: receiver_location_sk
+        tests:
+          - unique
+          - not_null
+      - name: receiver_location_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_customer
+    description: Gold copy of stg_dim_customer with a surrogate key added.
+    columns:
+      - name: customer_sk
+        description: hash(customer_code). Surrogate PK.
+        tests:
+          - unique
+          - not_null
+      - name: customer_code
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_date
+    description: >
+      Gold copy of stg_dim_calendar with a integer surrogate key. Joins to
+      fct_consignment_surcharge on date_sk (derived from sales_post_date).
+    columns:
+      - name: date_sk
+        description: Integer YYYYMMDD, e.g. 20220609.
+        tests:
+          - unique
+          - not_null
+      - name: calendar_date
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_unit_surcharge
+    description: >
+      One row per surcharge tier, gold copy of stg_dim_unit_surcharge, plus an unknown member
+      (unit_surcharge_id = -1, labelled "Unknown / no tier") for consignments that match no
+      tier.
+    columns:
+      - name: unit_surcharge_sk
+        description: >
+          hash(unit_surcharge_id). Surrogate PK. The unknown member instead uses
+          hash(null), matching the SK the fact generates when unit_surcharge_id is null.
+        tests:
+          - unique
+          - not_null
+      - name: unit_surcharge_id
+        tests:
+          - unique
+          - not_null
+      - name: unit_tier_label
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_consignment_surcharge
+    description: >
+      One row per consignment - the fact table Power BI reads. Built from
+      int_consignment_surcharge (silver), with surrogate-key FKs resolved, including
+      unit_surcharge_sk to dim_unit_surcharge for the tier label.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('stg_fact_consignment')
+    columns:
+      - name: invoice_id
+        tests:
+          - unique
+          - not_null
+      - name: date_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_sk
+      - name: customer_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_sk
+      - name: unit_surcharge_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_unit_surcharge')
+              field: unit_surcharge_sk
+      - name: sender_location_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_sender_location')
+              field: sender_location_sk
+      - name: receiver_location_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_receiver_location')
+              field: receiver_location_sk
+      - name: surcharge_revenue_amount
+        tests:
+          - not_null
+      - name: surcharge_foregone_amount
+        tests:
+          - not_null
